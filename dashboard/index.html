@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Headroom Usage</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; background: #0f1117; color: #e0e0e0; }
+  header { background: #1a1d27; padding: 16px 24px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #2a2d3a; }
+  header h1 { font-size: 18px; font-weight: 600; }
+  header span { font-size: 12px; color: #888; margin-left: auto; }
+  .tabs { display: flex; gap: 2px; padding: 16px 24px 0; background: #1a1d27; border-bottom: 1px solid #2a2d3a; }
+  .tab { padding: 8px 20px; border-radius: 6px 6px 0 0; cursor: pointer; font-size: 14px; color: #888; background: transparent; border: none; }
+  .tab.active { color: #fff; background: #0f1117; }
+  .content { padding: 24px; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-bottom: 24px; }
+  .card { background: #1a1d27; border-radius: 8px; padding: 16px; }
+  .card label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: .5px; }
+  .card .val { font-size: 24px; font-weight: 700; margin-top: 4px; }
+  .card .sub { font-size: 12px; color: #888; margin-top: 2px; }
+  .green { color: #4ade80; }
+  .blue  { color: #60a5fa; }
+  .panel { background: #1a1d27; border-radius: 8px; padding: 20px; margin-bottom: 16px; }
+  .panel h3 { font-size: 13px; font-weight: 600; color: #aaa; margin-bottom: 16px; text-transform: uppercase; letter-spacing: .5px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; padding: 8px 12px; color: #888; font-weight: 500; border-bottom: 1px solid #2a2d3a; font-size: 11px; text-transform: uppercase; }
+  td { padding: 10px 12px; border-bottom: 1px solid #1e2130; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #1e2130; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .badge-blue { background: #1e3a5f; color: #60a5fa; }
+  .badge-purple { background: #2d1b69; color: #a78bfa; }
+  .charts { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+  .chart-box { background: #1a1d27; border-radius: 8px; padding: 20px; }
+  .chart-box h3 { font-size: 13px; font-weight: 600; color: #aaa; margin-bottom: 12px; text-transform: uppercase; letter-spacing: .5px; }
+  .section-title { font-size: 13px; color: #888; margin: 20px 0 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
+  .pct-bar { height: 6px; background: #2a2d3a; border-radius: 3px; margin-top: 4px; }
+  .pct-bar-fill { height: 100%; border-radius: 3px; background: #4ade80; }
+  #status { font-size: 11px; color: #888; }
+  .error { color: #f87171; }
+</style>
+</head>
+<body>
+<header>
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+  <h1>Headroom Usage</h1>
+  <span id="status">loading…</span>
+</header>
+
+<div class="tabs">
+  <button class="tab" onclick="switchTab('lifetime')">Lifetime</button>
+  <button class="tab" onclick="switchTab('daily')">Daily</button>
+  <button class="tab" onclick="switchTab('weekly')">Weekly</button>
+  <button class="tab" onclick="switchTab('monthly')">Monthly</button>
+  <button class="tab" onclick="switchTab('history')">Requests</button>
+  <button class="tab" onclick="switchTab('manage')">Manage</button>
+  <button class="tab active" onclick="switchTab('dashboard')">Dashboard</button>
+</div>
+
+<div class="content">
+  <div id="tab-lifetime" style="display:none"></div>
+  <div id="tab-daily" style="display:none"></div>
+  <div id="tab-weekly" style="display:none"></div>
+  <div id="tab-monthly" style="display:none"></div>
+  <div id="tab-history" style="display:none"></div>
+  <div id="tab-manage" style="display:none"></div>
+  <div id="tab-dashboard"></div>
+</div>
+
+<script>
+const API = 'http://127.0.0.1:8787/stats-history';
+let data = null;
+let charts = {};
+let currentTab = 'dashboard';
+
+function fmt(n, d=0) { return (n||0).toLocaleString('en', {maximumFractionDigits: d}); }
+function fmtUSD(n) { return '$' + (n||0).toFixed(3); }
+function fmtPct(n) { return (n||0).toFixed(1) + '%'; }
+function fmtTS(ts) { return new Date(ts).toLocaleString(); }
+function fmtDate(ts) { return new Date(ts).toLocaleDateString(); }
+
+const COLORS = ['#60a5fa','#4ade80','#f472b6','#fb923c','#a78bfa','#34d399','#fbbf24','#38bdf8'];
+
+function destroyCharts() {
+  Object.values(charts).forEach(c => c.destroy());
+  charts = {};
+}
+
+function makeChart(id, type, labels, datasets, opts={}) {
+  const canvas = document.getElementById(id);
+  if (!canvas) return;
+  if (charts[id]) charts[id].destroy();
+  charts[id] = new Chart(canvas, {
+    type,
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: '#888', font: { size: 11 } } } },
+      scales: type !== 'pie' && type !== 'doughnut' ? {
+        x: { ticks: { color: '#888', font: { size: 10 } }, grid: { color: '#2a2d3a' } },
+        y: { ticks: { color: '#888', font: { size: 10 } }, grid: { color: '#2a2d3a' } }
+      } : {},
+      ...opts
+    }
+  });
+}
+
+function modelTable(rows) {
+  if (!rows.length) return '<p style="color:#888;font-size:13px">No data</p>';
+  return `<table>
+    <thead><tr><th>Model</th><th>Provider</th><th>Tokens Saved</th><th>Cost Saved</th><th>Input Tokens</th><th>Input Cost</th></tr></thead>
+    <tbody>${rows.map(r => `
+      <tr>
+        <td><span class="badge badge-blue">${r.model}</span></td>
+        <td><span class="badge badge-purple">${r.provider}</span></td>
+        <td class="green">${fmt(r.tokensSaved)}</td>
+        <td class="green">${fmtUSD(r.costSaved)}</td>
+        <td>${fmt(r.inputTokens)}</td>
+        <td>${fmtUSD(r.inputCost)}</td>
+      </tr>`).join('')}
+    </tbody>
+  </table>`;
+}
+
+function seriesTable(rows, labelFn) {
+  if (!rows.length) return '<p style="color:#888;font-size:13px">No data</p>';
+  const allModels = [...new Set(rows.flatMap(r => Object.keys(r.by_model||{})))];
+  return `<table>
+    <thead><tr><th>Period</th><th>Tokens Saved</th><th>Cost Saved</th><th>Input Tokens</th><th>Input Cost</th>${allModels.map(m=>`<th>${m}</th>`).join('')}</tr></thead>
+    <tbody>${rows.map(r => `
+      <tr>
+        <td>${labelFn(r.timestamp)}</td>
+        <td class="green">${fmt(r.tokens_saved || r.total_tokens_saved)}</td>
+        <td class="green">${fmtUSD(r.compression_savings_usd_delta ?? r.compression_savings_usd)}</td>
+        <td>${fmt(r.total_input_tokens_delta ?? r.total_input_tokens)}</td>
+        <td>${fmtUSD(r.total_input_cost_usd_delta ?? r.total_input_cost_usd)}</td>
+        ${allModels.map(m => {
+          const md = (r.by_model||{})[m];
+          return `<td>${md ? fmt(md.tokens_saved) : '-'}</td>`;
+        }).join('')}
+      </tr>`).join('')}
+    </tbody>
+  </table>`;
+}
+
+function renderLifetime() {
+  const lt = data.lifetime;
+  const ds = data.display_session;
+  const history = data.history || [];
+
+  // Aggregate by model
+  const byModel = {};
+  history.forEach(h => {
+    const key = `${h.model}||${h.provider}`;
+    if (!byModel[key]) byModel[key] = { model: h.model, provider: h.provider, tokensSaved: 0, costSaved: 0, inputTokens: 0, inputCost: 0 };
+  });
+  // Use last history entry per model (cumulative)
+  [...history].reverse().forEach(h => {
+    const key = `${h.model}||${h.provider}`;
+    if (byModel[key] && byModel[key].tokensSaved === 0) {
+      byModel[key].tokensSaved = h.total_tokens_saved || 0;
+      byModel[key].costSaved = h.compression_savings_usd || 0;
+      byModel[key].inputTokens = h.total_input_tokens || 0;
+      byModel[key].inputCost = h.total_input_cost_usd || 0;
+    }
+  });
+  const modelRows = Object.values(byModel);
+  const savingsPct = lt.total_input_tokens > 0 ? (lt.tokens_saved / lt.total_input_tokens * 100) : 0;
+
+  document.getElementById('tab-lifetime').innerHTML = `
+    <div class="cards">
+      <div class="card"><label>Tokens Saved (lifetime)</label><div class="val green">${fmt(lt.tokens_saved)}</div></div>
+      <div class="card"><label>Cost Saved (lifetime)</label><div class="val green">${fmtUSD(lt.compression_savings_usd)}</div></div>
+      <div class="card"><label>Total Input Tokens</label><div class="val blue">${fmt(lt.total_input_tokens)}</div></div>
+      <div class="card"><label>Total Input Cost</label><div class="val">${fmtUSD(lt.total_input_cost_usd)}</div></div>
+      <div class="card"><label>Total Requests</label><div class="val">${fmt(lt.requests)}</div></div>
+      <div class="card"><label>Savings Rate</label><div class="val green">${fmtPct(savingsPct)}</div>
+        <div class="pct-bar"><div class="pct-bar-fill" style="width:${Math.min(savingsPct,100)}%"></div></div>
+      </div>
+      <div class="card"><label>Session Savings</label><div class="val green">${fmtPct(ds.savings_percent)}</div><div class="sub">${fmt(ds.tokens_saved)} tokens</div></div>
+      <div class="card"><label>Session Cost Saved</label><div class="val green">${fmtUSD(ds.compression_savings_usd)}</div></div>
+    </div>
+    <div class="panel">
+      <h3>By Model / Provider</h3>
+      ${modelTable(modelRows)}
+    </div>
+    <div class="charts">
+      <div class="chart-box"><h3>Tokens Saved by Model</h3><div style="height:200px"><canvas id="lt-model-tokens"></canvas></div></div>
+      <div class="chart-box"><h3>Cost by Model</h3><div style="height:200px"><canvas id="lt-model-cost"></canvas></div></div>
+    </div>
+  `;
+
+  const labels = modelRows.map(r => r.model.replace('claude-',''));
+  makeChart('lt-model-tokens', 'doughnut', labels,
+    [{ data: modelRows.map(r => r.tokensSaved), backgroundColor: COLORS }]);
+  makeChart('lt-model-cost', 'doughnut', labels,
+    [{ data: modelRows.map(r => r.inputCost.toFixed(3)), backgroundColor: COLORS }]);
+}
+
+function renderSeries(tabId, series, labelFn, barLabel) {
+  if (!series || !series.length) {
+    document.getElementById(tabId).innerHTML = '<p style="color:#888;padding:24px">No data yet</p>';
+    return;
+  }
+  const rows = [...series].reverse();
+  document.getElementById(tabId).innerHTML = `
+    <div class="panel">
+      <h3>By ${barLabel}</h3>
+      ${seriesTable(rows, labelFn)}
+    </div>
+    <div class="charts">
+      <div class="chart-box"><h3>Tokens Saved</h3><div style="height:220px"><canvas id="${tabId}-tokens"></canvas></div></div>
+      <div class="chart-box"><h3>Cost Saved ($)</h3><div style="height:220px"><canvas id="${tabId}-cost"></canvas></div></div>
+    </div>
+  `;
+
+  // Per-model stacked bar for tokens
+  const allModels = [...new Set(rows.flatMap(r => Object.keys(r.by_model||{})))];
+  const periodLabels = rows.map(r => labelFn(r.timestamp));
+
+  if (allModels.length) {
+    makeChart(`${tabId}-tokens`, 'bar', periodLabels,
+      allModels.map((m, i) => ({
+        label: m.replace('claude-',''),
+        data: rows.map(r => (r.by_model||{})[m]?.tokens_saved || 0),
+        backgroundColor: COLORS[i % COLORS.length],
+        stack: 'a'
+      })));
+    makeChart(`${tabId}-cost`, 'bar', periodLabels,
+      allModels.map((m, i) => ({
+        label: m.replace('claude-',''),
+        data: rows.map(r => +((r.by_model||{})[m]?.total_input_cost_usd_delta || 0).toFixed(4)),
+        backgroundColor: COLORS[i % COLORS.length],
+        stack: 'a'
+      })));
+  } else {
+    makeChart(`${tabId}-tokens`, 'bar', periodLabels,
+      [{ label: 'Tokens Saved', data: rows.map(r => r.tokens_saved || r.total_tokens_saved || 0), backgroundColor: '#4ade80' }]);
+    makeChart(`${tabId}-cost`, 'bar', periodLabels,
+      [{ label: 'Cost Saved', data: rows.map(r => +(r.compression_savings_usd_delta || r.compression_savings_usd || 0).toFixed(4)), backgroundColor: '#60a5fa' }]);
+  }
+}
+
+function renderHistory() {
+  const rows = [...(data.history || [])].reverse().slice(0, 200);
+  document.getElementById('tab-history').innerHTML = `
+    <div class="panel">
+      <h3>Recent Requests (last ${rows.length})</h3>
+      <table>
+        <thead><tr><th>Time</th><th>Model</th><th>Provider</th><th>Tokens Saved</th><th>Cost Saved</th><th>Input Tokens</th><th>Input Cost</th></tr></thead>
+        <tbody>${rows.map(r => `
+          <tr>
+            <td style="color:#888;white-space:nowrap">${fmtTS(r.timestamp)}</td>
+            <td><span class="badge badge-blue">${r.model}</span></td>
+            <td><span class="badge badge-purple">${r.provider}</span></td>
+            <td class="green">${fmt(r.total_tokens_saved)}</td>
+            <td class="green">${fmtUSD(r.compression_savings_usd)}</td>
+            <td>${fmt(r.total_input_tokens)}</td>
+            <td>${fmtUSD(r.total_input_cost_usd)}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function render() {
+  destroyCharts();
+  if (currentTab === 'manage') { renderManage(); return; }
+  if (currentTab === 'dashboard') { renderDashboardFrame(); return; }
+  if (!data) return;
+  if (currentTab === 'lifetime') renderLifetime();
+  else if (currentTab === 'daily')   renderSeries('tab-daily', data.series.daily, d => fmtDate(d), 'Day');
+  else if (currentTab === 'weekly')  renderSeries('tab-weekly', data.series.weekly, d => 'Week of ' + fmtDate(d), 'Week');
+  else if (currentTab === 'monthly') renderSeries('tab-monthly', data.series.monthly, d => new Date(d).toLocaleString('en', {month:'short', year:'numeric'}), 'Month');
+  else if (currentTab === 'history') renderHistory();
+}
+
+function card(label, val, cls, sub) {
+  return `<div class="card"><label>${label}</label><div class="val ${cls||''}">${val}</div><div class="sub">${sub||''}</div></div>`;
+}
+
+async function renderManage() {
+  const el = document.getElementById('tab-manage');
+  el.innerHTML = '<p style="color:#888">Loading…</p>';
+  try {
+    const [stateRes, projRes] = await Promise.all([
+      fetch('/api/state').then(r => r.json()),
+      fetch('/api/projects').then(r => r.json())
+    ]);
+    const v = stateRes.verbosity || {};
+    const shaperOn = stateRes.output_shaper === '1';
+    const envLvl = stateRes.verbosity_level_env;
+    const activeSub = envLvl != null ? `env override L${envLvl}` : (v.verbosity_level != null ? 'from verbosity.json' : 'unset');
+    let html = '<div class="cards">';
+    html += card('Output Shaper', shaperOn ? 'ON' : 'OFF', shaperOn ? 'green' : 'error', shaperOn ? 'enabled' : 'HEADROOM_OUTPUT_SHAPER=0');
+    html += card('Active Level', v.verbosity_level != null ? 'L' + v.verbosity_level : '—', 'blue', activeSub);
+    html += card('Source', v.source || '—', '', v.confidence || '');
+    html += '</div>';
+
+    const projs = projRes.projects || [];
+    window._projects = projs;
+    html += '<div class="panel"><h3>Learned Projects — click Set to make active</h3>';
+    if (projRes.error) {
+      html += `<p class="error">${projRes.error}</p>`;
+    } else {
+      html += '<table><thead><tr><th></th><th>Level</th><th>Conf</th><th>Path</th><th></th></tr></thead><tbody>';
+      projs.forEach((p, i) => {
+        const active = v.project_path === p.path;
+        html += `<tr>`
+          + `<td>${active ? '<span class="badge badge-blue">active</span>' : ''}</td>`
+          + `<td>L${p.level}</td>`
+          + `<td>${p.confidence}</td>`
+          + `<td style="font-size:11px;color:#aaa">${p.path}</td>`
+          + `<td><button class="tab" onclick="setVerbosity(${i})">Set</button></td></tr>`;
+      });
+      html += '</tbody></table>';
+    }
+    html += '<p style="margin-top:14px"><button class="tab" onclick="learnAll(this)">Re-learn all (--apply)</button></p>';
+    html += '</div>';
+    el.innerHTML = html;
+  } catch (e) {
+    el.innerHTML = `<p class="error">Error: ${e.message}</p>`;
+  }
+}
+
+async function setVerbosity(i) {
+  const p = window._projects && window._projects[i];
+  if (!p) return;
+  const r = await fetch('/api/verbosity', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(p)
+  });
+  if (r.ok) renderManage(); else alert('Set failed: ' + r.status);
+}
+
+async function learnAll(btn) {
+  btn.disabled = true; const orig = btn.textContent; btn.textContent = 'Running… (can take a minute)';
+  try {
+    const r = await fetch('/api/learn-all', { method: 'POST' });
+    if (r.ok) renderManage(); else alert('Learn failed: ' + r.status);
+  } catch (e) { alert('Learn failed: ' + e.message); }
+  btn.disabled = false; btn.textContent = orig;
+}
+
+function renderDashboardFrame() {
+  const el = document.getElementById('tab-dashboard');
+  if (el.querySelector('iframe')) return;  // ponytail: keep iframe alive across interval refreshes — avoids reload blink
+  const host = location.hostname || 'localhost';
+  // ponytail: proxy /dashboard sends no X-Frame-Options, so direct cross-origin iframe works.
+  // src uses hostname so it works via localhost / 127.0.0.1 / LAN IP alike.
+  el.innerHTML = `<iframe src="http://${host}:8787/dashboard" `
+    + `style="width:100%;height:calc(100vh - 150px);border:0;border-radius:8px;background:#0f1117" `
+    + `title="Headroom Dashboard"></iframe>`;
+}
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => { if(t.textContent.toLowerCase().includes(tab) || (tab==='lifetime' && t.textContent==='Lifetime')) t.classList.add('active'); });
+  document.querySelectorAll('[id^="tab-"]').forEach(el => el.style.display = 'none');
+  document.getElementById(`tab-${tab}`).style.display = '';
+  render();
+}
+
+async function load() {
+  try {
+    const r = await fetch(API);
+    if (!r.ok) throw new Error(r.status);
+    data = await r.json();
+    const ts = new Date().toLocaleTimeString();
+    document.getElementById('status').textContent = `Updated ${ts}`;
+    document.getElementById('status').className = '';
+    render();
+  } catch(e) {
+    document.getElementById('status').textContent = `Error: ${e.message}`;
+    document.getElementById('status').className = 'error';
+  }
+}
+
+render();
+load();
+setInterval(load, 30000);
+</script>
+</body>
+</html>

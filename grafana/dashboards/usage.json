@@ -1,0 +1,159 @@
+{
+  "title": "Headroom Usage",
+  "uid": "headroom-usage",
+  "version": 2,
+  "refresh": "30s",
+  "time": {"from": "now-30d", "to": "now"},
+  "timepicker": {},
+  "panels": [
+    {
+      "id": 1,
+      "title": "Tokens Saved by Model",
+      "type": "piechart",
+      "gridPos": {"x": 0, "y": 0, "w": 8, "h": 9},
+      "targets": [{
+        "expr": "headroom_model_tokens_saved",
+        "legendFormat": "{{model}}",
+        "datasource": {"type": "prometheus"}
+      }],
+      "options": {"pieType": "donut", "displayLabels": ["name", "percent"]},
+      "fieldConfig": {"defaults": {"unit": "short"}}
+    },
+    {
+      "id": 2,
+      "title": "Input Cost by Model ($)",
+      "type": "piechart",
+      "gridPos": {"x": 8, "y": 0, "w": 8, "h": 9},
+      "targets": [{
+        "expr": "headroom_model_input_cost_usd",
+        "legendFormat": "{{model}}",
+        "datasource": {"type": "prometheus"}
+      }],
+      "options": {"pieType": "donut", "displayLabels": ["name", "percent"]},
+      "fieldConfig": {"defaults": {"unit": "currencyUSD"}}
+    },
+    {
+      "id": 3,
+      "title": "Cost Saved by Model ($)",
+      "type": "piechart",
+      "gridPos": {"x": 16, "y": 0, "w": 8, "h": 9},
+      "targets": [{
+        "expr": "headroom_model_cost_saved_usd",
+        "legendFormat": "{{model}}",
+        "datasource": {"type": "prometheus"}
+      }],
+      "options": {"pieType": "donut", "displayLabels": ["name", "percent"]},
+      "fieldConfig": {"defaults": {"unit": "currencyUSD", "color": {"fixedColor": "green", "mode": "fixed"}}}
+    },
+    {
+      "id": 4,
+      "title": "Model Usage Summary",
+      "type": "table",
+      "gridPos": {"x": 0, "y": 9, "w": 24, "h": 8},
+      "targets": [
+        {
+          "expr": "headroom_model_tokens_saved",
+          "legendFormat": "{{model}} / {{provider}}",
+          "instant": true,
+          "datasource": {"type": "prometheus"},
+          "refId": "A"
+        },
+        {
+          "expr": "headroom_model_input_tokens",
+          "instant": true,
+          "datasource": {"type": "prometheus"},
+          "refId": "B"
+        },
+        {
+          "expr": "headroom_model_cost_saved_usd",
+          "instant": true,
+          "datasource": {"type": "prometheus"},
+          "refId": "C"
+        },
+        {
+          "expr": "headroom_model_input_cost_usd",
+          "instant": true,
+          "datasource": {"type": "prometheus"},
+          "refId": "D"
+        }
+      ],
+      "transformations": [
+        {"id": "merge", "options": {}},
+        {
+          "id": "organize",
+          "options": {
+            "renameByName": {
+              "Value #A": "Tokens Saved",
+              "Value #B": "Input Tokens",
+              "Value #C": "Cost Saved ($)",
+              "Value #D": "Input Cost ($)",
+              "model": "Model",
+              "provider": "Provider"
+            },
+            "excludeByName": {"Time": true, "__name__": true, "instance": true, "job": true}
+          }
+        }
+      ],
+      "fieldConfig": {
+        "overrides": [
+          {"matcher": {"id": "byName", "options": "Cost Saved ($)"}, "properties": [{"id": "unit", "value": "currencyUSD"}, {"id": "custom.displayMode", "value": "color-background"}, {"id": "thresholds", "steps": [{"color": "green", "value": 0}]}]},
+          {"matcher": {"id": "byName", "options": "Input Cost ($)"}, "properties": [{"id": "unit", "value": "currencyUSD"}]},
+          {"matcher": {"id": "byName", "options": "Tokens Saved"}, "properties": [{"id": "unit", "value": "short"}]},
+          {"matcher": {"id": "byName", "options": "Input Tokens"}, "properties": [{"id": "unit", "value": "short"}]}
+        ]
+      }
+    },
+    {
+      "id": 5,
+      "title": "Tokens Saved over Time — by Model",
+      "type": "timeseries",
+      "gridPos": {"x": 0, "y": 17, "w": 12, "h": 9},
+      "targets": [{
+        "expr": "headroom_model_tokens_saved",
+        "legendFormat": "{{model}}",
+        "datasource": {"type": "prometheus"}
+      }],
+      "fieldConfig": {"defaults": {"unit": "short", "custom": {"lineWidth": 2}}},
+      "options": {"tooltip": {"mode": "multi"}}
+    },
+    {
+      "id": 6,
+      "title": "Input Cost over Time — by Model ($)",
+      "type": "timeseries",
+      "gridPos": {"x": 12, "y": 17, "w": 12, "h": 9},
+      "targets": [{
+        "expr": "headroom_model_input_cost_usd",
+        "legendFormat": "{{model}}",
+        "datasource": {"type": "prometheus"}
+      }],
+      "fieldConfig": {"defaults": {"unit": "currencyUSD", "custom": {"lineWidth": 2}}},
+      "options": {"tooltip": {"mode": "multi"}}
+    },
+    {
+      "id": 7,
+      "title": "Savings Rate over Time (%)",
+      "type": "timeseries",
+      "gridPos": {"x": 0, "y": 26, "w": 12, "h": 8},
+      "targets": [
+        {
+          "expr": "headroom_model_tokens_saved / clamp_min(headroom_model_input_tokens, 1) * 100",
+          "legendFormat": "{{model}}",
+          "datasource": {"type": "prometheus"}
+        }
+      ],
+      "fieldConfig": {"defaults": {"unit": "percent", "min": 0, "max": 100}}
+    },
+    {
+      "id": 8,
+      "title": "Requests by Provider",
+      "type": "timeseries",
+      "gridPos": {"x": 12, "y": 26, "w": 12, "h": 8},
+      "targets": [{
+        "expr": "headroom_requests_by_provider",
+        "legendFormat": "{{provider}}",
+        "datasource": {"type": "prometheus"}
+      }],
+      "fieldConfig": {"defaults": {"unit": "short"}}
+    }
+  ]
+}

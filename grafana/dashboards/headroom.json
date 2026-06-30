@@ -1,0 +1,189 @@
+{
+  "title": "Headroom",
+  "uid": "headroom",
+  "version": 2,
+  "refresh": "15s",
+  "time": {"from": "now-1h", "to": "now"},
+  "panels": [
+    {
+      "id": 100,
+      "title": "💰 Cost Saved (session)",
+      "type": "stat",
+      "gridPos": {"x": 0, "y": 0, "w": 6, "h": 4},
+      "targets": [{"expr": "headroom_cost_saved_usd", "legendFormat": "USD saved", "datasource": {"type": "prometheus"}}],
+      "fieldConfig": {"defaults": {"unit": "currencyUSD", "color": {"fixedColor": "green", "mode": "fixed"}, "decimals": 2}}
+    },
+    {
+      "id": 101,
+      "title": "Cost Without Headroom",
+      "type": "stat",
+      "gridPos": {"x": 6, "y": 0, "w": 6, "h": 4},
+      "targets": [
+        {"expr": "headroom_cost_without_usd", "legendFormat": "without", "datasource": {"type": "prometheus"}},
+        {"expr": "headroom_cost_with_usd", "legendFormat": "with", "datasource": {"type": "prometheus"}}
+      ],
+      "fieldConfig": {"defaults": {"unit": "currencyUSD", "decimals": 2}}
+    },
+    {
+      "id": 102,
+      "title": "💸 Savings %",
+      "type": "gauge",
+      "gridPos": {"x": 12, "y": 0, "w": 4, "h": 4},
+      "targets": [{"expr": "headroom_cost_savings_pct", "legendFormat": "savings %", "datasource": {"type": "prometheus"}}],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent", "min": 0, "max": 100,
+          "thresholds": {"steps": [{"color": "red", "value": 0}, {"color": "yellow", "value": 15}, {"color": "green", "value": 25}]}
+        }
+      }
+    },
+    {
+      "id": 103,
+      "title": "Session Savings %",
+      "type": "gauge",
+      "gridPos": {"x": 16, "y": 0, "w": 4, "h": 4},
+      "targets": [{"expr": "headroom_session_savings_pct", "legendFormat": "session %", "datasource": {"type": "prometheus"}}],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent", "min": 0, "max": 100,
+          "thresholds": {"steps": [{"color": "red", "value": 0}, {"color": "yellow", "value": 15}, {"color": "green", "value": 25}]}
+        }
+      }
+    },
+    {
+      "id": 104,
+      "title": "Lifetime Cost Saved",
+      "type": "stat",
+      "gridPos": {"x": 20, "y": 0, "w": 4, "h": 4},
+      "targets": [{"expr": "headroom_lifetime_cost_saved_usd", "legendFormat": "lifetime USD", "datasource": {"type": "prometheus"}}],
+      "fieldConfig": {"defaults": {"unit": "currencyUSD", "color": {"fixedColor": "green", "mode": "fixed"}, "decimals": 2}}
+    },
+    {
+      "id": 105,
+      "title": "Avg Compression %",
+      "type": "stat",
+      "gridPos": {"x": 0, "y": 4, "w": 4, "h": 4},
+      "targets": [{"expr": "headroom_compression_avg_pct", "legendFormat": "avg %", "datasource": {"type": "prometheus"}}],
+      "fieldConfig": {"defaults": {"unit": "percent", "decimals": 1}}
+    },
+    {
+      "id": 106,
+      "title": "Best Compression %",
+      "type": "stat",
+      "gridPos": {"x": 4, "y": 4, "w": 4, "h": 4},
+      "targets": [{"expr": "headroom_compression_best_pct", "legendFormat": "best %", "datasource": {"type": "prometheus"}}],
+      "fieldConfig": {"defaults": {"unit": "percent", "color": {"fixedColor": "green", "mode": "fixed"}, "decimals": 1}}
+    },
+    {
+      "id": 107,
+      "title": "Cost Trend (session)",
+      "type": "timeseries",
+      "gridPos": {"x": 8, "y": 4, "w": 16, "h": 8},
+      "targets": [
+        {"expr": "headroom_cost_saved_usd", "legendFormat": "saved", "datasource": {"type": "prometheus"}},
+        {"expr": "headroom_cost_with_usd", "legendFormat": "actual cost", "datasource": {"type": "prometheus"}},
+        {"expr": "headroom_cost_without_usd", "legendFormat": "cost without headroom", "datasource": {"type": "prometheus"}}
+      ],
+      "fieldConfig": {"defaults": {"unit": "currencyUSD"}}
+    },
+    {
+      "id": 1,
+      "title": "Requests/min",
+      "type": "timeseries",
+      "gridPos": {"x": 0, "y": 12, "w": 8, "h": 8},
+      "targets": [{"expr": "rate(headroom_requests_total[1m]) * 60", "legendFormat": "requests/min", "datasource": {"type": "prometheus"}}],
+      "fieldConfig": {"defaults": {"unit": "reqpm", "color": {"mode": "palette-classic"}}}
+    },
+    {
+      "id": 2,
+      "title": "Cache Hit Rate",
+      "type": "gauge",
+      "gridPos": {"x": 8, "y": 12, "w": 4, "h": 8},
+      "targets": [{"expr": "headroom_requests_cached_total / clamp_min(headroom_requests_total, 1) * 100", "legendFormat": "cache hit %", "datasource": {"type": "prometheus"}}],
+      "fieldConfig": {"defaults": {"unit": "percent", "min": 0, "max": 100, "thresholds": {"steps": [{"color": "red", "value": 0}, {"color": "yellow", "value": 40}, {"color": "green", "value": 70}]}}}
+    },
+    {
+      "id": 3,
+      "title": "Token Savings",
+      "type": "stat",
+      "gridPos": {"x": 12, "y": 12, "w": 6, "h": 4},
+      "targets": [{"expr": "headroom_tokens_saved_total", "legendFormat": "tokens saved", "datasource": {"type": "prometheus"}}],
+      "fieldConfig": {"defaults": {"unit": "short", "color": {"fixedColor": "green", "mode": "fixed"}}}
+    },
+    {
+      "id": 4,
+      "title": "Savings Rate (tokens)",
+      "type": "stat",
+      "gridPos": {"x": 18, "y": 12, "w": 6, "h": 4},
+      "targets": [{"expr": "headroom_tokens_saved_total / clamp_min(headroom_tokens_input_total, 1) * 100", "legendFormat": "% saved", "datasource": {"type": "prometheus"}}],
+      "fieldConfig": {"defaults": {"unit": "percent", "color": {"fixedColor": "green", "mode": "fixed"}}}
+    },
+    {
+      "id": 5,
+      "title": "Total Tokens",
+      "type": "stat",
+      "gridPos": {"x": 12, "y": 16, "w": 6, "h": 4},
+      "targets": [
+        {"expr": "headroom_tokens_input_total", "legendFormat": "input", "datasource": {"type": "prometheus"}},
+        {"expr": "headroom_tokens_output_total", "legendFormat": "output", "datasource": {"type": "prometheus"}}
+      ],
+      "fieldConfig": {"defaults": {"unit": "short"}}
+    },
+    {
+      "id": 6,
+      "title": "Active Requests",
+      "type": "stat",
+      "gridPos": {"x": 18, "y": 16, "w": 6, "h": 4},
+      "targets": [{"expr": "headroom_inbound_requests_active", "legendFormat": "active", "datasource": {"type": "prometheus"}}],
+      "fieldConfig": {"defaults": {"unit": "short", "color": {"mode": "thresholds"}, "thresholds": {"steps": [{"color": "green", "value": 0}, {"color": "yellow", "value": 5}, {"color": "red", "value": 20}]}}}
+    },
+    {
+      "id": 108,
+      "title": "Throughput — Input (tokens/s)",
+      "type": "timeseries",
+      "gridPos": {"x": 0, "y": 20, "w": 12, "h": 8},
+      "targets": [
+        {"expr": "headroom_throughput_input_p50", "legendFormat": "p50", "datasource": {"type": "prometheus"}},
+        {"expr": "headroom_throughput_input_p95", "legendFormat": "p95", "datasource": {"type": "prometheus"}}
+      ],
+      "fieldConfig": {"defaults": {"unit": "short"}}
+    },
+    {
+      "id": 7,
+      "title": "Avg Latency (ms)",
+      "type": "timeseries",
+      "gridPos": {"x": 12, "y": 20, "w": 12, "h": 8},
+      "targets": [{"expr": "headroom_latency_ms_sum / clamp_min(headroom_latency_ms_count, 1)", "legendFormat": "avg latency", "datasource": {"type": "prometheus"}}],
+      "fieldConfig": {"defaults": {"unit": "ms"}}
+    },
+    {
+      "id": 8,
+      "title": "Tokens/min",
+      "type": "timeseries",
+      "gridPos": {"x": 0, "y": 28, "w": 12, "h": 8},
+      "targets": [
+        {"expr": "rate(headroom_tokens_input_total[1m]) * 60", "legendFormat": "input tokens/min", "datasource": {"type": "prometheus"}},
+        {"expr": "rate(headroom_tokens_saved_total[1m]) * 60", "legendFormat": "saved tokens/min", "datasource": {"type": "prometheus"}}
+      ],
+      "fieldConfig": {"defaults": {"unit": "short"}}
+    },
+    {
+      "id": 9,
+      "title": "Requests by Model",
+      "type": "piechart",
+      "gridPos": {"x": 12, "y": 28, "w": 8, "h": 8},
+      "targets": [{"expr": "headroom_requests_by_model", "legendFormat": "{{model}}", "datasource": {"type": "prometheus"}}]
+    },
+    {
+      "id": 10,
+      "title": "Failed / Rate-limited",
+      "type": "timeseries",
+      "gridPos": {"x": 20, "y": 28, "w": 4, "h": 8},
+      "targets": [
+        {"expr": "rate(headroom_requests_failed_total[5m]) * 60", "legendFormat": "failed/min", "datasource": {"type": "prometheus"}},
+        {"expr": "rate(headroom_requests_rate_limited_total[5m]) * 60", "legendFormat": "rate-limited/min", "datasource": {"type": "prometheus"}}
+      ],
+      "fieldConfig": {"defaults": {"unit": "reqpm"}}
+    }
+  ]
+}
