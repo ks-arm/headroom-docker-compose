@@ -19,19 +19,22 @@ if ! docker run --rm -v /Volumes/External-B:/_check:ro alpine true >/dev/null 2>
 fi
 ok "Workspace root accessible"
 
-# 3. API key -> .env
+# 3. API key -> .env  (optional: ZAI_API_KEY only needed for the z.ai upstream)
 if [[ -f .env ]] && grep -q '^ZAI_API_KEY=.' .env; then
   ok "ZAI_API_KEY already in .env"
 else
-  printf '\033[1;34m▸\033[0m Paste your ZAI_API_KEY (get one at https://z.ai): '
+  printf '\033[1;34m▸\033[0m Paste your ZAI_API_KEY (optional, Enter to skip): '
   read -r KEY
-  [[ -n "${KEY:-}" ]] || die "No key entered."
-  if [[ -f .env ]] && grep -q '^ZAI_API_KEY=' .env; then
-    grep -v '^ZAI_API_KEY=' .env > .env.tmp || true
-    mv .env.tmp .env
+  if [[ -n "${KEY:-}" ]]; then
+    if [[ -f .env ]] && grep -q '^ZAI_API_KEY=' .env; then
+      grep -v '^ZAI_API_KEY=' .env > .env.tmp || true
+      mv .env.tmp .env
+    fi
+    printf 'ZAI_API_KEY=%s\n' "$KEY" >> .env
+    ok "Key saved to .env"
+  else
+    ok "Skipped ZAI_API_KEY (optional) — set ANTHROPIC_API_KEY / OPENAI_API_KEY in docker-compose.yml if you use another provider"
   fi
-  printf 'ZAI_API_KEY=%s\n' "$KEY" >> .env
-  ok "Key saved to .env"
 fi
 
 # 4. bring up the stack

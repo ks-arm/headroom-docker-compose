@@ -7,7 +7,9 @@ services:
     environment:
       - HEADROOM_WORKSPACE_DIR=/workspace
       - HEADROOM_CONFIG_DIR=/config
-      - ZAI_API_KEY=${ZAI_API_KEY} 
+      # ZAI_API_KEY is optional — uncomment to route to the z.ai upstream,
+      # or add ANTHROPIC_API_KEY / OPENAI_API_KEY for other providers.
+      # - ZAI_API_KEY=${ZAI_API_KEY}
       - HEADROOM_OUTPUT_SHAPER=1
       # HEADROOM_VERBOSITY_LEVEL intentionally unset → read from /workspace/verbosity.json
       # Route your requests to any OpenAI-compatible backend 

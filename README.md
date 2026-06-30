@@ -12,11 +12,11 @@ Headroom sits between your coding agent (Claude Code, etc.) and the LLM API and 
 
 - Docker + Docker Compose (Compose v2)
 - macOS with Docker Desktop (the compose uses `${HOME}` and `/Volumes/External-B` bind mounts — adjust the paths for your machine, see [Paths to change](#paths-to-change))
-- An API key for your upstream provider (default: z.ai)
+- An API key for your upstream provider — **optional** if you already route via `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` in `docker-compose.yml`; set `ZAI_API_KEY` only to use the z.ai upstream
 
 ## Zero-code setup (recommended)
 
-One script does everything — checks prerequisites, asks for your API key, writes `.env`, starts the stack, and waits until it's healthy. No file editing.
+One script does everything — checks prerequisites, optionally asks for your API key, writes `.env`, starts the stack, and waits until it's healthy. No file editing.
 
 ```sh
 ./setup.sh
@@ -24,7 +24,7 @@ One script does everything — checks prerequisites, asks for your API key, writ
 
 You'll be prompted for:
 
-- **`ZAI_API_KEY`** — get one at https://z.ai (paste when asked; it's saved to `.env` automatically)
+- **`ZAI_API_KEY`** _(optional)_ — get one at https://z.ai. Press **Enter to skip** if you route through another provider (`ANTHROPIC_API_KEY` / `OPENAI_API_KEY`) set in `docker-compose.yml`.
 
 When it finishes it prints the URLs. Open the **Dashboard** at http://localhost:8090.
 
@@ -34,11 +34,14 @@ That's it — your agent's base URL is `http://localhost:8787`.
 
 ## Manual setup
 
-1. **Set your API key** in `.env`:
+1. **Copy the env template and set a key** _(optional — only for the z.ai upstream)_:
 
-   ```env
-   ZAI_API_KEY=your_key_here
+   ```sh
+   cp .env.example .env
+   # then edit .env and uncomment ZAI_API_KEY=...
    ```
+
+   Skip this if you route through `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` instead.
 
 2. **Start everything:**
 
@@ -74,7 +77,7 @@ export ANTHROPIC_BASE_URL=http://127.0.0.1:8787
 export OPENAI_BASE_URL=http://127.0.0.1:8787/v1
 ```
 
-Add these to `~/.zshrc` (or `~/.bashrc`) so they persist, then `source ~/.zshrc`. You still need the provider's API key set as usual (`ANTHROPIC_API_KEY` / `OPENAI_API_KEY`) — the proxy forwards traffic to the upstream configured in `docker-compose.yml` (default z.ai via `ZAI_API_KEY`).
+Add these to `~/.zshrc` (or `~/.bashrc`) so they persist, then `source ~/.zshrc`. You still need the provider's API key set as usual (`ANTHROPIC_API_KEY` / `OPENAI_API_KEY`) — the proxy forwards traffic to whichever upstream you configure in `docker-compose.yml` (`ZAI_API_KEY` is optional).
 
 > Tip: run `docker exec headroom-proxy headroom init` to see the exact env vars and wrapper commands Headroom recommends for your installed agents.
 
@@ -142,9 +145,9 @@ The menu writes `verbosity.json` directly with Headroom's native keys, bypassing
 
 ### Environment (`.env`)
 
-| Variable      | Required | Description                          |
-|---------------|----------|--------------------------------------|
-| `ZAI_API_KEY` | yes      | Key for the z.ai upstream            |
+| Variable      | Required | Description                                               |
+|---------------|----------|-----------------------------------------------------------|
+| `ZAI_API_KEY` | no       | Key for the z.ai upstream (optional — uncomment in `.env`)|
 
 Other providers (OpenAI/Anthropic) can be added by uncommenting their env lines under `headroom-proxy`.
 
